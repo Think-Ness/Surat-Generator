@@ -2,6 +2,7 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
 import { formatTanggalIndo, formatWaktu } from './utils';
+import { api } from './api';
 
 const ROMAWI = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
@@ -131,10 +132,6 @@ export async function generateDocxFromTemplate(templateBuffer, data, filename, p
  * Generate PDF Presisi via GAS + Simpan ke Drive otomatis
  */
 export async function generatePDFFromTemplate(templateBuffer, data, filename, panitia = {}, metadata = {}, perizinan = {}, barang = [], silent = false) {
-  const PizZip        = (await import('pizzip')).default;
-  const Docxtemplater = (await import('docxtemplater')).default;
-  const { api }       = await import('./api');
-
   const zip = new PizZip(templateBuffer);
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
