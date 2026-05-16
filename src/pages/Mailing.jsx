@@ -184,9 +184,11 @@ export default function Mailing({ seting, initBatch }) {
     setSavingPdf(true);
     try {
       const jenisSurat = rows[0].Jenis_Surat || 'UMUM';
+      const panitia = panitiaList.find(p => String(p.ID) === String(rows[0]?.ID_Panitia)) || {};
       const res = await api.getTemplate({ 
         templateName: rows[0].Nama_Template,
-        jenisSurat: jenisSurat 
+        jenisSurat: jenisSurat,
+        panitiaName: panitia.Nama_Panitia || 'Lainnya'
       });
       if (!res.success || !res.base64) {
         throw new Error(`Template untuk kategori "${jenisSurat}" belum diupload di menu Pengaturan.`);
@@ -196,8 +198,6 @@ export default function Mailing({ seting, initBatch }) {
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
       const buffer = bytes.buffer;
-
-      const panitia = panitiaList.find(p => String(p.ID) === String(rows[0]?.ID_Panitia)) || {};
       
       // Metadata untuk Auto-Archive di GAS
       const metadata = {
@@ -234,9 +234,11 @@ export default function Mailing({ seting, initBatch }) {
     setDriveLinks([]);
     try {
       const jenisSurat = rows[0].Jenis_Surat || 'UMUM';
+      const panitia = panitiaList.find(p => String(p.ID) === String(rows[0]?.ID_Panitia)) || {};
       const resTpl = await api.getTemplate({
         templateName: rows[0].Nama_Template,
-        jenisSurat: jenisSurat
+        jenisSurat: jenisSurat,
+        panitiaName: panitia.Nama_Panitia || 'Lainnya'
       });
       if (!resTpl.success || !resTpl.base64) {
         throw new Error(`Template untuk kategori "${jenisSurat}" belum diupload di menu Pengaturan.`);
@@ -247,7 +249,6 @@ export default function Mailing({ seting, initBatch }) {
       for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
       const buffer = bytes.buffer;
 
-      const panitia = panitiaList.find(p => String(p.ID) === String(rows[0]?.ID_Panitia)) || {};
       const links = [];
 
       const metadata = {

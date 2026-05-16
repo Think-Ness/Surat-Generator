@@ -39,7 +39,7 @@ export default function TemplateEditor({ seting }) {
   const getEditorUrl = (item) => {
     if (!item) return '';
     // Format URL untuk Google Docs Editor (Office Editing)
-    return `https://docs.google.com/document/d/${item.id}/edit?rm=minimal`;
+    return `https://docs.google.com/document/d/${item.id}/edit`;
   };
 
   return (

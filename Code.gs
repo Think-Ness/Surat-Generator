@@ -133,7 +133,10 @@ function getGuru(e) {
   
   if (e && e.parameter && e.parameter.panitiaName) {
     const pName = e.parameter.panitiaName.toLowerCase();
-    rows = rows.filter(r => r.Nama_Kepanitiaan?.toLowerCase() === pName);
+    rows = rows.filter(r => {
+      const kName = (r.Nama_Kepanitiaan || '').toLowerCase();
+      return kName === pName || kName === 'non panitia';
+    });
   }
   return { data: rows };
 }
