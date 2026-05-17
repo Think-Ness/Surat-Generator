@@ -48,6 +48,8 @@ export const api = {
   getSurat:       (params)  => get('getSurat', params),
   insertSurat:    (rows)    => post('insertSurat', { rows }),
   deleteBatch:    (batch)   => post('deleteBatch', { batch }),
+  deleteSurat:    (rowNum)  => post('deleteSurat', { _row: rowNum }),
+  updateBatchMailing: (batch, jenisMailing) => post('updateBatchMailing', { batch, jenisMailing }),
   getNextNoSurat: (params)  => get('getNextNoSurat', params),
   getNextBatch:   ()        => get('getNextBatch'),
 

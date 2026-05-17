@@ -393,7 +393,45 @@ export default function Mailing({ seting, initBatch }) {
                     <span className={`badge ${BADGE[selBatchInfo.jenisSurat]||'badge-blue'}`} style={{ fontSize:13 }}>
                       {selBatchInfo.jenisSurat}
                     </span>
-                    <span className="badge badge-blue">{selBatchInfo.jenisMailing}</span>
+                    <select
+                      value={selBatchInfo.jenisMailing}
+                      disabled={loading}
+                      onChange={async (e) => {
+                        const newType = e.target.value;
+                        if (window.confirm(`Ubah tipe mailing batch ini menjadi "${newType}"?`)) {
+                          try {
+                            setLoading(true);
+                            await api.updateBatchMailing(selBatch, newType);
+                            toast('Tipe mailing berhasil diubah!', 'success');
+                            // Update local states immediately
+                            setAllSurat(prev => prev.map(s => Number(s.ID_Batch) === Number(selBatch) ? { ...s, Jenis_Mailing: newType } : s));
+                            setBatches(prev => prev.map(b => Number(b.id) === Number(selBatch) ? { ...b, jenisMailing: newType } : b));
+                          } catch(err) {
+                            toast('Gagal mengubah tipe: ' + err.message, 'error');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }
+                      }}
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: 11,
+                        borderRadius: 6,
+                        border: '1px solid var(--accent2)',
+                        background: '#EDF7F1',
+                        color: 'var(--accent2)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        height: 24,
+                        display: 'inline-flex',
+                        alignItems: 'center'
+                      }}
+                      title="Ubah tipe mailing (Perseorangan / Sekaligus)"
+                    >
+                      <option value="Perseorangan">👤 Perseorangan</option>
+                      <option value="Sekaligus">👥 Sekaligus</option>
+                    </select>
                     <span style={{ fontSize:12, opacity:.5 }}>Batch #{selBatch}</span>
                   </div>
                   <div style={{ fontWeight:700, fontSize:16, marginBottom:2 }}>
@@ -505,8 +543,8 @@ export default function Mailing({ seting, initBatch }) {
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
                     <tr style={{ background:'var(--bg)' }}>
-                      {['No.','No. Surat','Nama','Keterangan','Kamar/Bagian','Prodi','Semester'].map(h => (
-                        <th key={h} style={{ padding:'8px 10px', textAlign:'left', fontSize:12,
+                      {['No.','No. Surat','Nama','Keterangan','Kamar/Bagian','Prodi','Semester','Aksi'].map(h => (
+                        <th key={h} style={{ padding:'8px 10px', textAlign: h === 'Aksi' ? 'center' : 'left', fontSize:12,
                                              fontWeight:600, color:'var(--text-muted)',
                                              borderBottom:'1px solid var(--border)' }}>{h}</th>
                       ))}
@@ -514,7 +552,7 @@ export default function Mailing({ seting, initBatch }) {
                   </thead>
                   <tbody>
                     {rows.map((r, i) => (
-                      <tr key={r.ID_Surat} style={{ borderBottom:'1px solid var(--border)' }}>
+                      <tr key={r.ID_Surat} style={{ borderBottom:'1px solid var(--border)', background: loading ? '#fafafa' : 'transparent' }}>
                         <td style={{ padding:'8px 10px', opacity:.5 }}>{i+1}</td>
                         <td style={{ padding:'8px 10px' }}>{r.No_Surat}</td>
                         <td style={{ padding:'8px 10px', fontWeight:600 }}>{r.Nama}</td>
@@ -522,6 +560,58 @@ export default function Mailing({ seting, initBatch }) {
                         <td style={{ padding:'8px 10px', opacity:.7 }}>{r.Kamar_Bagian}</td>
                         <td style={{ padding:'8px 10px', opacity:.7 }}>{r.Prodi}</td>
                         <td style={{ padding:'8px 10px', opacity:.7 }}>{r.Semester}</td>
+                        <td style={{ padding:'8px 10px', textAlign:'center' }}>
+                          <button
+                            onClick={async () => {
+                              if (rows.length <= 1) {
+                                toast('Tidak dapat menghapus satu-satunya penerima. Hapus seluruh batch menggunakan tombol di atas jika diperlukan.', 'warning');
+                                return;
+                              }
+                              if (window.confirm(`Hapus "${r.Nama}" dari batch surat ini?`)) {
+                                try {
+                                  setLoading(true);
+                                  await api.deleteSurat(r._row);
+                                  toast(`Berhasil menghapus ${r.Nama}`, 'success');
+                                  
+                                  // Hapus data lokal dari allSurat
+                                  setAllSurat(prev => prev.filter(x => String(x.ID_Surat) !== String(r.ID_Surat)));
+                                  
+                                  // Kurangi count pada batch lokal
+                                  setBatches(prev => prev.map(b => Number(b.id) === Number(selBatch) ? { ...b, count: b.count - 1 } : b));
+                                } catch(err) {
+                                  toast('Gagal menghapus: ' + err.message, 'error');
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }
+                            }}
+                            disabled={loading}
+                            className="btn btn-ghost"
+                            style={{
+                              padding: '2px 6px',
+                              minHeight: 0,
+                              height: 24,
+                              color: 'var(--danger)',
+                              border: '1px solid transparent',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              fontSize: 11
+                            }}
+                            onMouseEnter={e => {
+                              if (!loading) {
+                                e.currentTarget.style.borderColor = 'var(--danger)';
+                                e.currentTarget.style.background = '#fef2f2';
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = 'transparent';
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                            title={`Hapus ${r.Nama} dari list`}
+                          >
+                            🗑 Hapus
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

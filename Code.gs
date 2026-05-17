@@ -46,6 +46,8 @@ function doPost(e) {
       case 'deleteBarang':  result = deleteBarang(payload);  break;
       case 'insertPerizinan': result = insertPerizinan(payload); break;
       case 'deleteBatch':   result = deleteBatch(payload);   break;
+      case 'deleteSurat':   result = deleteSurat(payload);   break;
+      case 'updateBatchMailing': result = updateBatchMailing(payload); break;
       case 'savePanitia':   result = savePanitia(payload);   break;
       case 'deletePanitia': result = deletePanitia(payload); break;
       case 'updateGuru':    result = updateGuru(payload);    break;
@@ -621,6 +623,31 @@ function logPdfToSheet(idBatch, noSurat, url) {
       sheet.getRange(i + 1, linkIdx + 1).setValue(url);
     }
   }
+}
+
+function deleteSurat(payload) {
+  const sheet = getSheet(SHEET_SURAT);
+  sheet.deleteRow(payload._row);
+  return { success: true };
+}
+
+function updateBatchMailing(payload) {
+  const sheet = getSheet(SHEET_SURAT);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const batchIdx = headers.indexOf('ID_Batch');
+  const typeIdx = headers.indexOf('Jenis_Mailing');
+  
+  if (batchIdx === -1 || typeIdx === -1) return { error: 'Kolom tidak ditemukan' };
+  
+  let count = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (Number(data[i][batchIdx]) === Number(payload.batch)) {
+      sheet.getRange(i + 1, typeIdx + 1).setValue(payload.jenisMailing);
+      count++;
+    }
+  }
+  return { success: true, updated: count };
 }
 
 // ================================================================
