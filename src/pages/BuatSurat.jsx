@@ -831,11 +831,47 @@ export default function BuatSurat({ seting, onDone }) {
                   </div>
                   <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => setShowPreview(false)}>✕ Tutup</button>
                 </div>
-                <iframe
-                  src={`https://docs.google.com/document/d/${tplObj.id}/edit`}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  title="Editor Template"
-                />
+                <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' }}>
+                  {/* Tag Sidebar Helper */}
+                  <div style={{
+                    width: '240px',
+                    borderRight: '1px solid var(--border)',
+                    background: '#fcfbfa',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+                    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--accent-soft)' }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        📋 Salin Tag Template
+                      </div>
+                      <div style={{ fontSize: 10, opacity: .7, marginTop: 4, lineHeight: 1.4 }}>
+                        Klik tag untuk menyalin otomatis, lalu tempel (<b>Ctrl+V</b>) pada dokumen editor di sebelah kanan.
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {TAG_CATEGORIES.map((cat, idx) => (
+                        <div key={idx}>
+                          <div style={{ fontSize: 10, fontWeight: 700, opacity: .8, textTransform: 'uppercase', marginBottom: 6, letterSpacing: '.4px', color: 'var(--accent)' }}>
+                            {cat.title}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            {cat.tags.map((t, tIdx) => (
+                              <TagRow key={tIdx} code={t.code} desc={t.desc} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Google Docs Editor */}
+                  <iframe
+                    src={`https://docs.google.com/document/d/${tplObj.id}/edit`}
+                    style={{ flex: 1, height: '100%', border: 'none' }}
+                    title="Editor Template"
+                  />
+                </div>
               </div>
             </div>
           );
@@ -861,3 +897,110 @@ export default function BuatSurat({ seting, onDone }) {
     </div>
   );
 }
+
+// ── TAG HELPER UTILITIES FOR TEMPLATE EDITOR ────────────────────────────────
+function TagRow({ code, desc }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div 
+      onClick={handleCopy}
+      style={{
+        padding: '6px 8px',
+        background: '#fff',
+        border: copied ? '1px solid var(--accent2)' : '1px solid var(--border)',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        transition: 'all 0.15s ease',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = copied ? 'var(--accent2)' : 'var(--accent)';
+        e.currentTarget.style.background = 'var(--accent-soft)';
+        e.currentTarget.style.transform = 'translateY(-1px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = copied ? 'var(--accent2)' : 'var(--border)';
+        e.currentTarget.style.background = '#fff';
+        e.currentTarget.style.transform = 'none';
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, overflow: 'hidden' }}>
+        <code style={{ fontSize: 11, fontWeight: 700, color: copied ? 'var(--accent2)' : '#b45309', wordBreak: 'break-all' }}>{code}</code>
+        <span style={{ fontSize: 9, opacity: .6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{desc}</span>
+      </div>
+      <div style={{ fontSize: 11, marginLeft: 6, flexShrink: 0 }}>
+        {copied ? (
+          <span style={{ color: 'var(--accent2)', fontWeight: 600, fontSize: 9 }}>✓ OK</span>
+        ) : (
+          <span style={{ opacity: .4 }} title="Salin Tag">📋</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const TAG_CATEGORIES = [
+  {
+    title: '👤 Target / Penerima',
+    tags: [
+      { code: '{Nama}', desc: 'Nama Penerima/Target' },
+      { code: '{Jabatan_Panitia}', desc: 'Jabatan Kepanitiaan' },
+      { code: '{Nama_Kepanitiaan}', desc: 'Nama Kepanitiaan Target' },
+      { code: '{Kamar_Bagian}', desc: 'Kamar / Bagian' },
+      { code: '{Prodi}', desc: 'Program Studi (Guru)' },
+      { code: '{Semester}', desc: 'Semester (Guru)' },
+      { code: '{Tahun_Pengabdian}', desc: 'Thn Pengabdian / Kelas' }
+    ]
+  },
+  {
+    title: '📅 Tanggal & Waktu',
+    tags: [
+      { code: '{Tanggal_Surat_Indo}', desc: 'Tgl Surat dibuat (Masehi)' },
+      { code: '{Tanggal_Hijriah}', desc: 'Tgl Surat dibuat (Hijriah)' },
+      { code: '{Hari}', desc: 'Hari Kegiatan' },
+      { code: '{Tanggal_Indo}', desc: 'Tanggal Kegiatan (Masehi)' },
+      { code: '{Waktu}', desc: 'Waktu Kegiatan' }
+    ]
+  },
+  {
+    title: '📝 Detail Surat & Acara',
+    tags: [
+      { code: '{No_Surat}', desc: 'Nomor Surat' },
+      { code: '{Hal}', desc: 'Perihal Surat' },
+      { code: '{Ket}', desc: 'Keterangan (Kepada)' },
+      { code: '{Acara}', desc: 'Nama Acara' },
+      { code: '{Tempat}', desc: 'Tempat Acara' }
+    ]
+  },
+  {
+    title: '🏢 Pengirim / Panitia',
+    tags: [
+      { code: '{Panitia}', desc: 'Nama Panitia Pengirim' },
+      { code: '{Instansi}', desc: 'Nama Instansi' },
+      { code: '{Alamat}', desc: 'Alamat Panitia' },
+      { code: '{Ketua_Nama}', desc: 'Nama Ketua Panitia' },
+      { code: '{Ketua_Jabatan}', desc: 'Jabatan Ketua' },
+      { code: '{Link_TTD}', desc: 'Link Gambar TTD' }
+    ]
+  },
+  {
+    title: '💡 Khusus & Loop',
+    tags: [
+      { code: '{Keperluan}', desc: 'Keperluan Izin (Surat Perizinan)' },
+      { code: '{Alasan}', desc: 'Alasan Izin (Surat Perizinan)' },
+      { code: '{Daftar_Barang_Text}', desc: 'Daftar Barang (Peminjaman)' },
+      { code: '{#orang}{Nama}{/orang}', desc: 'Loop daftar orang (Sekaligus)' },
+      { code: '{#items}{Nama_Barang} ({Jumlah}){/items}', desc: 'Loop daftar barang (Sekaligus)' }
+    ]
+  }
+];
