@@ -348,17 +348,17 @@ export default function BuatSurat({ seting, onDone }) {
   const fetchData = useCallback((isManual = false) => {
     if (!seting?.idPanitia) return;
     setLoadingGuru(true);
-    // Fetch ALL master teachers and templates so they can select other committees or view everything!
-    const paramsP = {};
+    // Fetch ALL master teachers so they can select other committees or view everything, but keep templates scoped to the logged-in committee!
     const paramsID = isAdmin ? {} : { ID_Panitia: seting.idPanitia };
+    const paramsTemplates = isAdmin ? {} : { panitiaName: seting.namaPanitia };
 
     Promise.all([
-      api.getGuru(paramsP).catch(() => ({ data: [] })),
+      api.getGuru({}).catch(() => ({ data: [] })),
       api.getSantri().catch(() => ({ data: [] })),
       api.getNextNoSurat(paramsID).catch(() => ({ next: 1 })),
       api.getSurat(paramsID).catch(() => ({ data: [] })),
       api.getPanitia().catch(() => ({ data: [] })),
-      api.listTemplates(paramsP).catch(() => ({ data: [] }))
+      api.listTemplates(paramsTemplates).catch(() => ({ data: [] }))
     ])
       .then(([g, sn, n, s, p, t]) => {
         setGuru(g.data || []);
