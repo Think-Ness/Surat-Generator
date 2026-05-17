@@ -144,6 +144,45 @@ export default function BuatSurat({ seting, onDone }) {
   const [draftPdfUrl, setDraftPdfUrl] = useState('');
   const [hijriOffset, setHijriOffset] = useState(0);
 
+  // States for Resizable Splitter in Template Editor
+  const [sidebarWidth, setSidebarWidth] = useState(240);
+  const [isResizing, setIsResizing] = useState(false);
+  const editorContainerRef = useRef(null);
+
+  const startResize = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResize = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((e) => {
+    if (!isResizing || !editorContainerRef.current) return;
+    const containerRect = editorContainerRef.current.getBoundingClientRect();
+    const newWidth = e.clientX - containerRect.left;
+    // Set boundaries for the sidebar: min 150px, max 500px
+    if (newWidth > 150 && newWidth < 500) {
+      setSidebarWidth(newWidth);
+    }
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResize);
+    } else {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResize);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResize);
+    };
+  }, [isResizing, resize, stopResize]);
+
+
   const updateHijriOffset = (change) => {
     const newOff = hijriOffset + change;
     setHijriOffset(newOff);
@@ -831,10 +870,10 @@ export default function BuatSurat({ seting, onDone }) {
                   </div>
                   <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => setShowPreview(false)}>✕ Tutup</button>
                 </div>
-                <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' }}>
+                <div ref={editorContainerRef} style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%', position: 'relative' }}>
                   {/* Tag Sidebar Helper */}
                   <div style={{
-                    width: '240px',
+                    width: `${sidebarWidth}px`,
                     borderRight: '1px solid var(--border)',
                     background: '#fcfbfa',
                     display: 'flex',
@@ -865,12 +904,44 @@ export default function BuatSurat({ seting, onDone }) {
                       ))}
                     </div>
                   </div>
+
+                  {/* Resizable Divider (Splitter Bar) */}
+                  <div 
+                    onMouseDown={startResize}
+                    style={{
+                      width: '6px',
+                      cursor: 'col-resize',
+                      background: isResizing ? 'var(--accent)' : 'var(--border)',
+                      transition: 'background 0.2s',
+                      zIndex: 10,
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--accent)'}
+                    onMouseLeave={e => { if(!isResizing) e.currentTarget.style.background = 'var(--border)' }}
+                  >
+                    <div style={{ width: '2px', height: '24px', borderLeft: '1px dotted var(--text-muted)', opacity: 0.5 }}></div>
+                  </div>
+
                   {/* Google Docs Editor */}
-                  <iframe
-                    src={`https://docs.google.com/document/d/${tplObj.id}/edit`}
-                    style={{ flex: 1, height: '100%', border: 'none' }}
-                    title="Editor Template"
-                  />
+                  <div style={{ flex: 1, position: 'relative', height: '100%' }}>
+                    <iframe
+                      src={`https://docs.google.com/document/d/${tplObj.id}/edit`}
+                      style={{ width: '100%', height: '100%', border: 'none' }}
+                      title="Editor Template"
+                    />
+                    {/* Transparent overlay to block iframe mouse interaction while resizing */}
+                    {isResizing && (
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'transparent',
+                        zIndex: 20
+                      }} />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
