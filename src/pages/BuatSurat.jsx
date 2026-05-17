@@ -337,7 +337,7 @@ export default function BuatSurat({ seting, onDone }) {
   const tableRef = useRef(null);
 
   // Load data awal — re-run whenever active panitia changes
-  useEffect(() => {
+  const fetchData = useCallback((isManual = false) => {
     if (!seting?.idPanitia) return;
     setLoadingGuru(true);
     const paramsP = isAdmin ? {} : { panitiaName: seting.namaPanitia };
@@ -362,19 +362,28 @@ export default function BuatSurat({ seting, onDone }) {
           typeof item === 'string' ? { name: item, id: item } : item
         );
         setTemplateList(tplData);
-        if (tplData.length > 0) setSelTemplate(tplData[0].name);
+        if (tplData.length > 0) {
+          setSelTemplate(prev => tplData.some(x => x.name === prev) ? prev : tplData[0].name);
+        }
 
         // Auto-select active panitia
         const activePanId = isAdmin ? (p.data?.[0]?.ID || '') : seting.idPanitia;
         setForm(f => ({ ...f, noSurat: n.next, ID_Panitia: activePanId }));
+
+        if (isManual) {
+          toast('Data berhasil diperbarui!', 'success');
+        }
       })
       .catch((err) => {
         console.error(err);
         toast('Gagal memuat data utama', 'error');
       })
       .finally(() => setLoadingGuru(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seting?.idPanitia]);
+  }, [seting?.idPanitia, seting?.namaPanitia, isAdmin]);
+
+  useEffect(() => {
+    fetchData(false);
+  }, [fetchData]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -779,8 +788,33 @@ export default function BuatSurat({ seting, onDone }) {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             marginBottom: 10, flexWrap: 'wrap', gap: 8
           }}>
-            <div className="section-title" style={{ margin: 0, border: 'none', padding: 0 }}>
-              Pilih Nama <span style={{ fontWeight: 400, opacity: .6 }}>({selected.size} dipilih)</span>
+            <div className="section-title" style={{ margin: 0, border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Pilih Nama</span>
+              <span style={{ fontWeight: 400, opacity: .6, fontSize: 13 }}>({selected.size} dipilih)</span>
+              <button 
+                onClick={() => fetchData(true)} 
+                disabled={loadingGuru}
+                className="btn btn-ghost" 
+                style={{ 
+                  padding: '4px 8px', 
+                  fontSize: 11, 
+                  minHeight: 0, 
+                  height: 24, 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: 4,
+                  borderRadius: 6,
+                  color: 'var(--accent)',
+                  border: '1px solid var(--border)',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                title="Refresh data dari database"
+              >
+                {loadingGuru ? '⏳' : '🔄'} Refresh
+              </button>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <input placeholder="🔍 Cari..." value={search}
