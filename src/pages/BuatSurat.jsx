@@ -144,10 +144,15 @@ export default function BuatSurat({ seting, onDone }) {
   const [draftPdfUrl, setDraftPdfUrl] = useState('');
   const [hijriOffset, setHijriOffset] = useState(0);
 
-  // States for Resizable Splitter in Template Editor
+  // States for Resizable Splitter in Template Editor (Inner)
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [isResizing, setIsResizing] = useState(false);
   const editorContainerRef = useRef(null);
+
+  // States for Resizable Splitter (Main: Form vs Editor/Preview - Outer)
+  const [formWidthPercent, setFormWidthPercent] = useState(55);
+  const [isResizingMain, setIsResizingMain] = useState(false);
+  const mainContainerRef = useRef(null);
 
   const startResize = useCallback((e) => {
     e.preventDefault();
@@ -168,6 +173,26 @@ export default function BuatSurat({ seting, onDone }) {
     }
   }, [isResizing]);
 
+  const startResizeMain = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingMain(true);
+  }, []);
+
+  const stopResizeMain = useCallback(() => {
+    setIsResizingMain(false);
+  }, []);
+
+  const resizeMain = useCallback((e) => {
+    if (!isResizingMain || !mainContainerRef.current) return;
+    const containerRect = mainContainerRef.current.getBoundingClientRect();
+    const newWidthPixels = e.clientX - containerRect.left;
+    const newWidthPercent = (newWidthPixels / containerRect.width) * 100;
+    // Set boundaries for the left panel: min 30%, max 75%
+    if (newWidthPercent > 30 && newWidthPercent < 75) {
+      setFormWidthPercent(newWidthPercent);
+    }
+  }, [isResizingMain]);
+
   useEffect(() => {
     if (isResizing) {
       window.addEventListener('mousemove', resize);
@@ -181,6 +206,21 @@ export default function BuatSurat({ seting, onDone }) {
       window.removeEventListener('mouseup', stopResize);
     };
   }, [isResizing, resize, stopResize]);
+
+  useEffect(() => {
+    if (isResizingMain) {
+      window.addEventListener('mousemove', resizeMain);
+      window.addEventListener('mouseup', stopResizeMain);
+    } else {
+      window.removeEventListener('mousemove', resizeMain);
+      window.removeEventListener('mouseup', stopResizeMain);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resizeMain);
+      window.removeEventListener('mouseup', stopResizeMain);
+    };
+  }, [isResizingMain, resizeMain, stopResizeMain]);
+
 
 
   const updateHijriOffset = (change) => {
@@ -486,8 +526,23 @@ export default function BuatSurat({ seting, onDone }) {
   };
 
   return (
-    <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: showPreview ? '1.2fr 1fr' : '1fr', gap: 20, alignItems: 'start' }}>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div 
+      ref={mainContainerRef}
+      className="fade-in" 
+      style={{ 
+        display: 'flex', 
+        gap: showPreview ? 0 : 20, 
+        alignItems: 'start',
+        position: 'relative',
+        width: '100%'
+      }}
+    >
+      <div style={{ 
+        width: showPreview ? `${formWidthPercent}%` : '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        flexShrink: 0
+      }}>
         {/* ── Jenis Surat + Mailing ── */}
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="section-title">Jenis Surat</div>
@@ -837,123 +892,169 @@ export default function BuatSurat({ seting, onDone }) {
         </div>
       </div>
 
-      {/* ── Panel Kanan (Editor Template atau Draft Preview) ── */}
-      {showPreview && (() => {
-        if (draftPdfUrl) {
-          return (
-            <div style={{ position: 'sticky', top: 20, height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
-              <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e0e7ff' }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, color: '#3730a3' }}>
-                    <span>📄</span> Draft Preview (PDF)
-                  </div>
-                  <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => setShowPreview(false)}>✕ Tutup</button>
-                </div>
-                <iframe
-                  src={draftPdfUrl.replace('/view', '/preview')}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  title="Draft Preview"
-                />
-              </div>
-            </div>
-          );
-        }
+      {/* Main Splitter Divider */}
+      {showPreview && (
+        <div 
+          onMouseDown={startResizeMain}
+          style={{
+            width: '14px',
+            cursor: 'col-resize',
+            display: 'flex',
+            alignSelf: 'stretch',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 30,
+            flexShrink: 0,
+            userSelect: 'none'
+          }}
+          onMouseEnter={e => e.currentTarget.children[0].style.background = 'var(--accent)'}
+          onMouseLeave={e => { if(!isResizingMain) e.currentTarget.children[0].style.background = 'var(--border)' }}
+        >
+          <div style={{ 
+            width: '4px', 
+            height: '80px', 
+            borderRadius: '2px',
+            background: isResizingMain ? 'var(--accent)' : 'var(--border)', 
+            transition: 'background 0.2s' 
+          }} />
+        </div>
+      )}
 
-        const tplObj = templateList.find(t => t.name === selTemplate);
-        if (tplObj && tplObj.id && tplObj.id !== tplObj.name) {
-          return (
-            <div style={{ position: 'sticky', top: 20, height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
-              <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>📝</span> Editor: {tplObj.name}
-                  </div>
-                  <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => setShowPreview(false)}>✕ Tutup</button>
-                </div>
-                <div ref={editorContainerRef} style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%', position: 'relative' }}>
-                  {/* Tag Sidebar Helper */}
-                  <div style={{
-                    width: `${sidebarWidth}px`,
-                    borderRight: '1px solid var(--border)',
-                    background: '#fcfbfa',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                    flexShrink: 0
-                  }}>
-                    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--accent-soft)' }}>
-                      <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        📋 Salin Tag Template
+      {/* ── Panel Kanan (Editor Template atau Draft Preview) ── */}
+      {showPreview && (
+        <div style={{ 
+          flex: 1, 
+          minWidth: 0,
+          position: 'relative',
+          alignSelf: 'stretch'
+        }}>
+          {(() => {
+            if (draftPdfUrl) {
+              return (
+                <div style={{ position: 'sticky', top: 20, height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
+                  <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e0e7ff' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, color: '#3730a3' }}>
+                        <span>📄</span> Draft Preview (PDF)
                       </div>
-                      <div style={{ fontSize: 10, opacity: .7, marginTop: 4, lineHeight: 1.4 }}>
-                        Klik tag untuk menyalin otomatis, lalu tempel (<b>Ctrl+V</b>) pada dokumen editor di sebelah kanan.
-                      </div>
+                      <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => setShowPreview(false)}>✕ Tutup</button>
                     </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {TAG_CATEGORIES.map((cat, idx) => (
-                        <div key={idx}>
-                          <div style={{ fontSize: 10, fontWeight: 700, opacity: .8, textTransform: 'uppercase', marginBottom: 6, letterSpacing: '.4px', color: 'var(--accent)' }}>
-                            {cat.title}
+                    <iframe
+                      src={draftPdfUrl.replace('/view', '/preview')}
+                      style={{ width: '100%', height: '100%', border: 'none' }}
+                      title="Draft Preview"
+                    />
+                  </div>
+                </div>
+              );
+            }
+
+            const tplObj = templateList.find(t => t.name === selTemplate);
+            if (tplObj && tplObj.id && tplObj.id !== tplObj.name) {
+              return (
+                <div style={{ position: 'sticky', top: 20, height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
+                  <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>📝</span> Editor: {tplObj.name}
+                      </div>
+                      <button className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => setShowPreview(false)}>✕ Tutup</button>
+                    </div>
+                    <div ref={editorContainerRef} style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%', position: 'relative' }}>
+                      {/* Tag Sidebar Helper */}
+                      <div style={{
+                        width: `${sidebarWidth}px`,
+                        borderRight: '1px solid var(--border)',
+                        background: '#fcfbfa',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                        flexShrink: 0
+                      }}>
+                        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--accent-soft)' }}>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            📋 Salin Tag Template
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                            {cat.tags.map((t, tIdx) => (
-                              <TagRow key={tIdx} code={t.code} desc={t.desc} />
-                            ))}
+                          <div style={{ fontSize: 10, opacity: .7, marginTop: 4, lineHeight: 1.4 }}>
+                            Klik tag untuk menyalin otomatis, lalu tempel (<b>Ctrl+V</b>) pada dokumen editor di sebelah kanan.
                           </div>
                         </div>
-                      ))}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {TAG_CATEGORIES.map((cat, idx) => (
+                            <div key={idx}>
+                              <div style={{ fontSize: 10, fontWeight: 700, opacity: .8, textTransform: 'uppercase', marginBottom: 6, letterSpacing: '.4px', color: 'var(--accent)' }}>
+                                {cat.title}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                {cat.tags.map((t, tIdx) => (
+                                  <TagRow key={tIdx} code={t.code} desc={t.desc} />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Resizable Divider (Splitter Bar) */}
+                      <div 
+                        onMouseDown={startResize}
+                        style={{
+                          width: '6px',
+                          cursor: 'col-resize',
+                          background: isResizing ? 'var(--accent)' : 'var(--border)',
+                          transition: 'background 0.2s',
+                          zIndex: 10,
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--accent)'}
+                        onMouseLeave={e => { if(!isResizing) e.currentTarget.style.background = 'var(--border)' }}
+                      >
+                        <div style={{ width: '2px', height: '24px', borderLeft: '1px dotted var(--text-muted)', opacity: 0.5 }}></div>
+                      </div>
+
+                      {/* Google Docs Editor */}
+                      <div style={{ flex: 1, position: 'relative', height: '100%' }}>
+                        <iframe
+                          src={`https://docs.google.com/document/d/${tplObj.id}/edit`}
+                          style={{ width: '100%', height: '100%', border: 'none' }}
+                          title="Editor Template"
+                        />
+                        {/* Transparent overlay to block iframe mouse interaction while resizing */}
+                        {isResizing && (
+                          <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'transparent',
+                            zIndex: 20
+                          }} />
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Resizable Divider (Splitter Bar) */}
-                  <div 
-                    onMouseDown={startResize}
-                    style={{
-                      width: '6px',
-                      cursor: 'col-resize',
-                      background: isResizing ? 'var(--accent)' : 'var(--border)',
-                      transition: 'background 0.2s',
-                      zIndex: 10,
-                      flexShrink: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--accent)'}
-                    onMouseLeave={e => { if(!isResizing) e.currentTarget.style.background = 'var(--border)' }}
-                  >
-                    <div style={{ width: '2px', height: '24px', borderLeft: '1px dotted var(--text-muted)', opacity: 0.5 }}></div>
-                  </div>
-
-                  {/* Google Docs Editor */}
-                  <div style={{ flex: 1, position: 'relative', height: '100%' }}>
-                    <iframe
-                      src={`https://docs.google.com/document/d/${tplObj.id}/edit`}
-                      style={{ width: '100%', height: '100%', border: 'none' }}
-                      title="Editor Template"
-                    />
-                    {/* Transparent overlay to block iframe mouse interaction while resizing */}
-                    {isResizing && (
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        background: 'transparent',
-                        zIndex: 20
-                      }} />
-                    )}
-                  </div>
                 </div>
-              </div>
-            </div>
-          );
-        } else {
-          return (
-            <div style={{ position: 'sticky', top: 20, padding: 20, textAlign: 'center', background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}>
-              Backend belum di-update. Silakan New Deployment di Apps Script untuk melihat preview!
-            </div>
-          );
-        }
-      })()}
+              );
+            } else {
+              return (
+                <div style={{ position: 'sticky', top: 20, padding: 20, textAlign: 'center', background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}>
+                  Backend belum di-update. Silakan New Deployment di Apps Script untuk melihat preview!
+                </div>
+              );
+            }
+          })()}
+          {/* Main Drag Overlay to prevent iframe focus/stuck dragging */}
+          {isResizingMain && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'transparent',
+              zIndex: 100
+            }} />
+          )}
+        </div>
+      )}
 
       <BarangModal
         show={showBarang}
