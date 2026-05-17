@@ -52,6 +52,7 @@ function enrichData(d, panitia = {}, perizinan = {}, barang = []) {
     Thn_Masehi: !isNaN(t) ? t.getFullYear() : '',
     Bln_Hijriah_Romawi,
     Thn_Hijriah,
+    Thn: d.Tahun_Pengabdian || '',
     
     // Tag Panitia TTD (pengirim surat)
     Panitia:         panitia.Nama_Panitia || '',

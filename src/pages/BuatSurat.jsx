@@ -1194,7 +1194,7 @@ const TAG_CATEGORIES = [
       { code: '{Kamar_Bagian}', desc: 'Kamar / Bagian' },
       { code: '{Prodi}', desc: 'Program Studi (Guru)' },
       { code: '{Semester}', desc: 'Semester (Guru)' },
-      { code: '{Tahun_Pengabdian}', desc: 'Thn Pengabdian / Kelas' }
+      { code: '{Thn}', desc: 'Thn Pengabdian / Kelas' }
     ]
   },
   {
