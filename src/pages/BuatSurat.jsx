@@ -1,5 +1,5 @@
 // src/pages/BuatSurat.jsx
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { api } from '../lib/api';
 import { toast, formatTanggalIndo } from '../lib/utils';
 import { generatePDFFromTemplate } from '../lib/docxGenerator';
@@ -126,7 +126,15 @@ export default function BuatSurat({ seting, onDone }) {
   const [search, setSearch] = useState('');
   const [filterBagian, setFilterBagian] = useState('');
   const [filterProdi, setFilterProdi] = useState('');
+  const [filterKepanitiaan, setFilterKepanitiaan] = useState('');
   const [sort, setSort] = useState({ col: 'Nama', dir: 'asc' });
+
+  // Auto-set the committee filter to the logged-in committee as the default focus
+  useEffect(() => {
+    if (seting?.namaPanitia) {
+      setFilterKepanitiaan(seting.namaPanitia);
+    }
+  }, [seting?.namaPanitia]);
   const [loading, setLoading] = useState(false);
   const [loadingGuru, setLoadingGuru] = useState(true);
 
@@ -340,7 +348,8 @@ export default function BuatSurat({ seting, onDone }) {
   const fetchData = useCallback((isManual = false) => {
     if (!seting?.idPanitia) return;
     setLoadingGuru(true);
-    const paramsP = isAdmin ? {} : { panitiaName: seting.namaPanitia };
+    // Fetch ALL master teachers and templates so they can select other committees or view everything!
+    const paramsP = {};
     const paramsID = isAdmin ? {} : { ID_Panitia: seting.idPanitia };
 
     Promise.all([
@@ -399,18 +408,29 @@ export default function BuatSurat({ seting, onDone }) {
   const bagianOptions = [...new Set(activeList.map(g => g.Kamar_Bagian).filter(Boolean))].sort();
   const prodiOptions = [...new Set(activeList.map(g => g.Prodi).filter(Boolean))].sort();
 
+  // Extract unique committee names from all fetched teachers
+  const kepanitiaanOptions = useMemo(() => {
+    const set = new Set();
+    guru.forEach(g => {
+      if (g.Nama_Kepanitiaan) set.add(g.Nama_Kepanitiaan);
+    });
+    return Array.from(set).sort();
+  }, [guru]);
+
   const handleSort = (col) => {
     setSort(s => ({ col, dir: s.col === col && s.dir === 'asc' ? 'desc' : 'asc' }));
   };
 
   const filteredGuru = activeList
-    .filter(g =>
-      (g.Nama?.toLowerCase().includes(search.toLowerCase()) ||
+    .filter(g => {
+      const matchSearch = (g.Nama?.toLowerCase().includes(search.toLowerCase()) ||
         g.Kamar_Bagian?.toLowerCase().includes(search.toLowerCase()) ||
-        g.Prodi?.toLowerCase().includes(search.toLowerCase())) &&
-      (!filterBagian || g.Kamar_Bagian === filterBagian) &&
-      (!filterProdi || g.Prodi === filterProdi)
-    )
+        g.Prodi?.toLowerCase().includes(search.toLowerCase()));
+      const matchBagian = !filterBagian || g.Kamar_Bagian === filterBagian;
+      const matchProdi = !filterProdi || g.Prodi === filterProdi;
+      const matchKepanitiaan = target !== 'Guru' || !filterKepanitiaan || g.Nama_Kepanitiaan === filterKepanitiaan;
+      return matchSearch && matchBagian && matchProdi && matchKepanitiaan;
+    })
     .sort((a, b) => {
       const va = String(a[sort.col] ?? '').toLowerCase();
       const vb = String(b[sort.col] ?? '').toLowerCase();
@@ -820,6 +840,15 @@ export default function BuatSurat({ seting, onDone }) {
               <input placeholder="🔍 Cari..." value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{ width: 150, fontSize: 12 }} />
+              {target === 'Guru' && (
+                <select value={filterKepanitiaan} onChange={e => setFilterKepanitiaan(e.target.value)}
+                  style={{ fontSize: 12, width: 165, fontWeight: filterKepanitiaan ? '600' : '400', color: filterKepanitiaan ? 'var(--accent)' : 'inherit', border: filterKepanitiaan ? '1px solid var(--accent)' : '1px solid #ddd' }}>
+                  <option value="">🌐 Semua Kepanitiaan</option>
+                  {kepanitiaanOptions.map(k => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+              )}
               <select value={filterBagian} onChange={e => setFilterBagian(e.target.value)}
                 style={{ fontSize: 12, width: 130 }}>
                 <option value="">Semua Bagian</option>
