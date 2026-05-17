@@ -23,6 +23,21 @@ export default function Mailing({ seting, initBatch }) {
   const pdfTplInputRef  = useRef(null);
   const draggedIndex    = useRef(null);
 
+  // States for adding a new recipient
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [masterGuru, setMasterGuru] = useState([]);
+  const [masterSantri, setMasterSantri] = useState([]);
+  const [loadingMaster, setLoadingMaster] = useState(false);
+  const [addType, setAddType] = useState('guru'); // 'guru' or 'santri'
+  const [searchVal, setSearchVal] = useState('');
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [formNama, setFormNama] = useState('');
+  const [formKet, setFormKet] = useState('');
+  const [formKamar, setFormKamar] = useState('');
+  const [formProdi, setFormProdi] = useState('');
+  const [formSemester, setFormSemester] = useState('');
+  const [formThnPengabdian, setFormThnPengabdian] = useState('');
+
   // Load semua surat & panitia
   useEffect(() => {
     setLoading(true);
@@ -88,6 +103,24 @@ export default function Mailing({ seting, initBatch }) {
       setPerizinan(null);
     }
   }, [selBatch, allSurat]);
+
+  // Lazy-load Guru & Santri master data when "+ Tambah Penerima" modal is opened
+  useEffect(() => {
+    if (showAddModal && masterGuru.length === 0 && masterSantri.length === 0) {
+      setLoadingMaster(true);
+      Promise.all([
+        api.getGuru().catch(() => ({ data: [] })),
+        api.getSantri().catch(() => ({ data: [] }))
+      ]).then(([g, s]) => {
+        setMasterGuru(g.data || []);
+        setMasterSantri(s.data || []);
+      }).catch(err => {
+        toast('Gagal memuat database guru/santri: ' + err.message, 'error');
+      }).finally(() => {
+        setLoadingMaster(false);
+      });
+    }
+  }, [showAddModal, masterGuru.length, masterSantri.length]);
 
   const getActivePanitia = () =>
     panitiaList.find(p => String(p.ID) === String(rows[0]?.ID_Panitia)) || {};
@@ -372,6 +405,54 @@ export default function Mailing({ seting, initBatch }) {
     }
   };
 
+  const handleSelectPerson = (p) => {
+    setSelectedPerson(p);
+    setFormNama(p.Nama || '');
+    setFormKet(p.Jabatan_Panitia || p.Ket || '');
+    setFormKamar(p.Kamar_Bagian || '');
+    setFormProdi(p.Prodi || '');
+    setFormSemester(p.Semester || '');
+    setFormThnPengabdian(p.Tahun_Pengabdian || '');
+  };
+
+  const handleAddRecipient = async () => {
+    if (!formNama) { toast('Nama harus diisi!', 'error'); return; }
+    setSaving(true);
+    try {
+      const baseRow = rows[0] || {};
+      const newRecipientRow = {
+        ...baseRow,
+        Nama:             formNama,
+        Ket:              formKet,
+        Kamar_Bagian:     formKamar,
+        Prodi:            formProdi,
+        Semester:         formSemester,
+        Tahun_Pengabdian: formThnPengabdian,
+        Link_PDF:         ''
+      };
+      
+      delete newRecipientRow.ID_Surat;
+      delete newRecipientRow.Tanggal_Dibuat;
+      delete newRecipientRow._row;
+      
+      await api.insertSurat([newRecipientRow]);
+      toast(`Berhasil menambahkan ${formNama} ke mailing list!`, 'success');
+      
+      setShowAddModal(false);
+      setSelectedPerson(null);
+      setSearchVal('');
+      
+      const isAdmin = seting.idPanitia === 'ADMIN';
+      const params = isAdmin ? {} : { ID_Panitia: seting.idPanitia };
+      const r = await api.getSurat(params);
+      setAllSurat(r.data || []);
+    } catch(err) {
+      toast('Gagal menambahkan penerima: ' + err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const BADGE = {
     'Perizinan':  'badge-amber',
     'Undangan':   'badge-blue',
@@ -575,7 +656,20 @@ export default function Mailing({ seting, initBatch }) {
 
             {/* Tabel nama */}
             <div className="card" style={{ marginBottom:14 }}>
-              <div className="section-title">Daftar Nama ({rows.length} orang)</div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                <div className="section-title" style={{ margin:0 }}>Daftar Nama ({rows.length} orang)</div>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize:12, padding:'6px 12px', display:'flex', alignItems:'center', gap:4 }}
+                  onClick={() => {
+                    setSelectedPerson(null);
+                    setSearchVal('');
+                    setShowAddModal(true);
+                  }}
+                >
+                  ➕ Tambah Penerima
+                </button>
+              </div>
               <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
@@ -743,6 +837,252 @@ export default function Mailing({ seting, initBatch }) {
           </>
         )}
       </div>
+
+      {/* ── Modal Overlay: Tambah Penerima ── */}
+      {showAddModal && (
+        <div style={{
+          position:'fixed', inset:0, background:'rgba(0,0,0,.45)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          zIndex:1000, padding:16,
+        }}
+          onClick={e => { if (e.target === e.currentTarget) setShowAddModal(false); }}>
+          <div style={{
+            background:'var(--card)', borderRadius:14, width:'100%', maxWidth:520,
+            maxHeight:'85vh', display:'flex', flexDirection:'column',
+            boxShadow:'0 20px 60px rgba(0,0,0,.2)',
+            animation:'fadeIn .2s ease',
+          }}>
+            {/* Header */}
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)',
+                          display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div>
+                <div style={{ fontWeight:700, fontSize:15 }}>➕ Tambah Penerima Baru</div>
+                <div style={{ fontSize:11, opacity:.5 }}>Masukkan penerima susulan ke dalam Batch #{selBatch}</div>
+              </div>
+              <button onClick={() => setShowAddModal(false)} style={{
+                background:'var(--bg)', border:'1px solid var(--border)',
+                borderRadius:8, width:32, height:32, cursor:'pointer',
+                fontSize:16, display:'flex', alignItems:'center', justifyContent:'center',
+              }}>✕</button>
+            </div>
+
+            {/* Body */}
+            <div style={{ flex:1, overflow:'auto', padding:'16px 20px' }}>
+              {loadingMaster ? (
+                <div style={{ textAlign:'center', padding:40, opacity:.5, fontSize:13 }}>
+                  ⏳ Memuat database Guru & Santri...
+                </div>
+              ) : (
+                <>
+                  {/* Pilihan tipe: Guru / Santri */}
+                  <div style={{ marginBottom:14 }}>
+                    <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--text-muted)', marginBottom:6, textTransform:'uppercase' }}>Tipe database</label>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button
+                        type="button"
+                        onClick={() => { setAddType('guru'); setSelectedPerson(null); setSearchVal(''); }}
+                        className="btn"
+                        style={{
+                          flex:1,
+                          background: addType === 'guru' ? '#e0f2fe' : 'var(--bg)',
+                          border: `1px solid ${addType === 'guru' ? '#0284c7' : 'var(--border)'}`,
+                          color: addType === 'guru' ? '#0369a1' : 'var(--text)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '8px 12px'
+                        }}
+                      >
+                        👨‍🏫 Guru (Ustadz/ah)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAddType('santri'); setSelectedPerson(null); setSearchVal(''); }}
+                        className="btn"
+                        style={{
+                          flex:1,
+                          background: addType === 'santri' ? '#e0f2fe' : 'var(--bg)',
+                          border: `1px solid ${addType === 'santri' ? '#0284c7' : 'var(--border)'}`,
+                          color: addType === 'santri' ? '#0369a1' : 'var(--text)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '8px 12px'
+                        }}
+                      >
+                        🎓 Santri
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Input pencarian */}
+                  <div style={{ marginBottom:14 }}>
+                    <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--text-muted)', marginBottom:6, textTransform:'uppercase' }}>Cari Nama Penerima</label>
+                    <input
+                      type="text"
+                      placeholder={`Ketik nama ${addType === 'guru' ? 'guru ustadz/ah' : 'santri'}...`}
+                      value={searchVal}
+                      onChange={(e) => {
+                        setSearchVal(e.target.value);
+                        setSelectedPerson(null);
+                      }}
+                      style={{ width:'100%', padding:'8px 10px', fontSize:13, borderRadius:8, border:'1px solid var(--border)', background:'var(--bg)', color:'var(--text)', outline:'none' }}
+                    />
+                    
+                    {/* Hasil pencarian */}
+                    {searchVal && !selectedPerson && (
+                      <div style={{
+                        maxHeight:150, overflowY:'auto', border:'1px solid var(--border)',
+                        borderRadius:8, background:'var(--card)', boxShadow:'0 4px 12px rgba(0,0,0,.08)', marginTop:4
+                      }}>
+                        {(() => {
+                          const filtered = addType === 'guru'
+                            ? masterGuru.filter(g => g.Nama?.toLowerCase().includes(searchVal.toLowerCase()))
+                            : masterSantri.filter(s => s.Nama?.toLowerCase().includes(searchVal.toLowerCase()));
+                          
+                          if (filtered.length === 0) {
+                            return <div style={{ padding:10, fontSize:12, opacity:.5, textAlign:'center' }}>Tidak ditemukan matches</div>;
+                          }
+                          return filtered.map(p => (
+                            <div
+                              key={p.ID_Guru || p.ID_Santri}
+                              onClick={() => handleSelectPerson(p)}
+                              style={{
+                                padding:'8px 12px', fontSize:12, cursor:'pointer',
+                                borderBottom:'1px solid var(--border)', transition:'background .1s',
+                                display:'flex', justifyContent:'space-between'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <strong style={{ color:'var(--text)' }}>{p.Nama}</strong>
+                              <span style={{ fontSize:11, opacity:.5 }}>{p.Kamar_Bagian || p.Kelas || ''}</span>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Form konfirmasi detail data */}
+                  {selectedPerson ? (
+                    <div style={{
+                      padding:14, background:'var(--bg)', borderRadius:10,
+                      border:'1px solid var(--border)', animation:'fadeIn .15s'
+                    }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                        <span style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:'var(--text-muted)' }}>Isi Form Penerima (Bisa Diedit)</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPerson(null)}
+                          style={{ background:'none', border:'none', fontSize:11, color:'var(--danger)', cursor:'pointer', fontWeight:600 }}
+                        >
+                          ✕ Reset Pilihan
+                        </button>
+                      </div>
+                      
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+                        <div>
+                          <label style={{ display:'block', fontSize:11, opacity:.6, marginBottom:2 }}>Nama Lengkap *</label>
+                          <input
+                            type="text"
+                            value={formNama}
+                            onChange={(e) => setFormNama(e.target.value)}
+                            style={{ width:'100%', padding:'6px 8px', fontSize:12, borderRadius:6, border:'1px solid var(--border)', background:'var(--card)', color:'var(--text)' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display:'block', fontSize:11, opacity:.6, marginBottom:2 }}>Keterangan / Jabatan</label>
+                          <input
+                            type="text"
+                            value={formKet}
+                            onChange={(e) => setFormKet(e.target.value)}
+                            style={{ width:'100%', padding:'6px 8px', fontSize:12, borderRadius:6, border:'1px solid var(--border)', background:'var(--card)', color:'var(--text)' }}
+                            placeholder="Contoh: Panitia, Guru, dll."
+                          />
+                        </div>
+                      </div>
+                      
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+                        <div>
+                          <label style={{ display:'block', fontSize:11, opacity:.6, marginBottom:2 }}>Kamar / Bagian</label>
+                          <input
+                            type="text"
+                            value={formKamar}
+                            onChange={(e) => setFormKamar(e.target.value)}
+                            style={{ width:'100%', padding:'6px 8px', fontSize:12, borderRadius:6, border:'1px solid var(--border)', background:'var(--card)', color:'var(--text)' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display:'block', fontSize:11, opacity:.6, marginBottom:2 }}>Prodi</label>
+                          <input
+                            type="text"
+                            value={formProdi}
+                            onChange={(e) => setFormProdi(e.target.value)}
+                            style={{ width:'100%', padding:'6px 8px', fontSize:12, borderRadius:6, border:'1px solid var(--border)', background:'var(--card)', color:'var(--text)' }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                        <div>
+                          <label style={{ display:'block', fontSize:11, opacity:.6, marginBottom:2 }}>Semester</label>
+                          <input
+                            type="text"
+                            value={formSemester}
+                            onChange={(e) => setFormSemester(e.target.value)}
+                            style={{ width:'100%', padding:'6px 8px', fontSize:12, borderRadius:6, border:'1px solid var(--border)', background:'var(--card)', color:'var(--text)' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display:'block', fontSize:11, opacity:.6, marginBottom:2 }}>Tahun Pengabdian</label>
+                          <input
+                            type="text"
+                            value={formThnPengabdian}
+                            onChange={(e) => setFormThnPengabdian(e.target.value)}
+                            style={{ width:'100%', padding:'6px 8px', fontSize:12, borderRadius:6, border:'1px solid var(--border)', background:'var(--card)', color:'var(--text)' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding:24, textAlign:'center', opacity:.5,
+                      border:'1px dashed var(--border)', borderRadius:10, fontSize:12
+                    }}>
+                      💡 Pilih nama penerima dari daftar pencarian di atas untuk memunculkan form pengisian data
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)',
+                          display:'flex', justifyContent:'flex-end', gap:8 }}>
+              <button className="btn btn-ghost" onClick={() => setShowAddModal(false)} style={{ fontSize:12 }}>
+                Batal
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleAddRecipient}
+                disabled={saving || !selectedPerson}
+                style={{ fontSize:12, padding:'8px 16px', display:'flex', alignItems:'center', gap:4 }}
+              >
+                {saving ? '⏳ Menyimpan...' : '➕ Tambahkan ke Batch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
