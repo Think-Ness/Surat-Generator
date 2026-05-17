@@ -48,6 +48,7 @@ function doPost(e) {
       case 'deleteBatch':   result = deleteBatch(payload);   break;
       case 'deleteSurat':   result = deleteSurat(payload);   break;
       case 'updateBatchMailing': result = updateBatchMailing(payload); break;
+      case 'updateBatchOrder': result = updateBatchOrder(payload); break;
       case 'savePanitia':   result = savePanitia(payload);   break;
       case 'deletePanitia': result = deletePanitia(payload); break;
       case 'updateGuru':    result = updateGuru(payload);    break;
@@ -648,6 +649,41 @@ function updateBatchMailing(payload) {
     }
   }
   return { success: true, updated: count };
+}
+
+function updateBatchOrder(payload) {
+  const sheet = getSheet(SHEET_SURAT);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const batchIdx = headers.indexOf('ID_Batch');
+  const idIdx = headers.indexOf('ID_Surat');
+  
+  if (batchIdx === -1 || idIdx === -1) return { error: 'Kolom tidak ditemukan' };
+  
+  // Ambil semua data baris milik batch ini
+  const batchRows = [];
+  for (let i = 1; i < data.length; i++) {
+    if (Number(data[i][batchIdx]) === Number(payload.batch)) {
+      batchRows.push({
+        rowNum: i + 1,
+        data: data[i]
+      });
+    }
+  }
+  
+  // Susun ulang baris berdasarkan urutan ID_Surat baru
+  const orderedRows = payload.newOrder.map(id => {
+    return batchRows.find(r => Number(r.data[idIdx]) === Number(id));
+  }).filter(Boolean);
+  
+  // Tulis ulang nilai baris pada spreadsheet sesuai urutan baru
+  orderedRows.forEach((ordered, index) => {
+    const targetRowNum = batchRows[index].rowNum;
+    const rowValue = ordered.data;
+    sheet.getRange(targetRowNum, 1, 1, rowValue.length).setValues([rowValue]);
+  });
+  
+  return { success: true };
 }
 
 // ================================================================

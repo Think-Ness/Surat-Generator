@@ -50,6 +50,7 @@ export const api = {
   deleteBatch:    (batch)   => post('deleteBatch', { batch }),
   deleteSurat:    (rowNum)  => post('deleteSurat', { _row: rowNum }),
   updateBatchMailing: (batch, jenisMailing) => post('updateBatchMailing', { batch, jenisMailing }),
+  updateBatchOrder: (batch, newOrder) => post('updateBatchOrder', { batch, newOrder }),
   getNextNoSurat: (params)  => get('getNextNoSurat', params),
   getNextBatch:   ()        => get('getNextBatch'),
 

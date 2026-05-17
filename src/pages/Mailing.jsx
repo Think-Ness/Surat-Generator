@@ -21,6 +21,7 @@ export default function Mailing({ seting, initBatch }) {
   const [driveLinks, setDriveLinks] = useState([]); // [{name, url}]
   const fileInputRef    = useRef(null);
   const pdfTplInputRef  = useRef(null);
+  const draggedIndex    = useRef(null);
 
   // Load semua surat & panitia
   useEffect(() => {
@@ -335,6 +336,42 @@ export default function Mailing({ seting, initBatch }) {
     }
   };
 
+  const handleMoveRow = async (fromIndex, toIndex) => {
+    if (fromIndex < 0 || fromIndex >= rows.length || toIndex < 0 || toIndex >= rows.length) return;
+    const newRows = [...rows];
+    const [movedItem] = newRows.splice(fromIndex, 1);
+    newRows.splice(toIndex, 0, movedItem);
+    
+    setLoading(true);
+    try {
+      const orderIds = newRows.map(r => r.ID_Surat);
+      await api.updateBatchOrder(selBatch, orderIds);
+      toast('Urutan lampiran berhasil diperbarui!', 'success');
+      
+      // Update local state by mapping original list
+      setAllSurat(prev => {
+        const batchIds = new Set(orderIds.map(String));
+        let inserted = false;
+        const result = [];
+        prev.forEach(s => {
+          if (batchIds.has(String(s.ID_Surat))) {
+            if (!inserted) {
+              result.push(...newRows);
+              inserted = true;
+            }
+          } else {
+            result.push(s);
+          }
+        });
+        return result;
+      });
+    } catch(err) {
+      toast('Gagal memperbarui urutan: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const BADGE = {
     'Perizinan':  'badge-amber',
     'Undangan':   'badge-blue',
@@ -543,8 +580,8 @@ export default function Mailing({ seting, initBatch }) {
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
                     <tr style={{ background:'var(--bg)' }}>
-                      {['No.','No. Surat','Nama','Keterangan','Kamar/Bagian','Prodi','Semester','Aksi'].map(h => (
-                        <th key={h} style={{ padding:'8px 10px', textAlign: h === 'Aksi' ? 'center' : 'left', fontSize:12,
+                      {['', 'No.', 'No. Surat', 'Nama', 'Keterangan', 'Kamar/Bagian', 'Prodi', 'Semester', 'Aksi'].map(h => (
+                        <th key={h} style={{ padding:'8px 10px', textAlign: h === 'Aksi' || h === '' ? 'center' : 'left', fontSize:12,
                                              fontWeight:600, color:'var(--text-muted)',
                                              borderBottom:'1px solid var(--border)' }}>{h}</th>
                       ))}
@@ -552,7 +589,57 @@ export default function Mailing({ seting, initBatch }) {
                   </thead>
                   <tbody>
                     {rows.map((r, i) => (
-                      <tr key={r.ID_Surat} style={{ borderBottom:'1px solid var(--border)', background: loading ? '#fafafa' : 'transparent' }}>
+                      <tr key={r.ID_Surat}
+                        draggable={!loading}
+                        onDragStart={(e) => {
+                          draggedIndex.current = i;
+                          e.currentTarget.style.opacity = '0.5';
+                        }}
+                        onDragEnd={(e) => {
+                          e.currentTarget.style.opacity = '1';
+                          draggedIndex.current = null;
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const fromIndex = draggedIndex.current;
+                          const toIndex = i;
+                          if (fromIndex !== null && fromIndex !== toIndex) {
+                            handleMoveRow(fromIndex, toIndex);
+                          }
+                        }}
+                        style={{
+                          borderBottom:'1px solid var(--border)',
+                          background: loading ? '#fafafa' : 'transparent',
+                          cursor: loading ? 'not-allowed' : 'move'
+                        }}
+                      >
+                        <td style={{ padding:'8px 10px', display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}>
+                          <span
+                            style={{ cursor:'grab', opacity:.4, fontSize:14, paddingRight:4 }}
+                            title="Drag/seret untuk mengatur urutan"
+                          >
+                            ⋮⋮
+                          </span>
+                          <button
+                            disabled={i === 0 || loading}
+                            onClick={() => handleMoveRow(i, i - 1)}
+                            style={{ background:'none', border:'none', padding:2, cursor: loading || i === 0 ? 'not-allowed' : 'pointer', fontSize:10, opacity: i === 0 ? .2 : .6 }}
+                            title="Pindahkan ke atas"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            disabled={i === rows.length - 1 || loading}
+                            onClick={() => handleMoveRow(i, i + 1)}
+                            style={{ background:'none', border:'none', padding:2, cursor: loading || i === rows.length - 1 ? 'not-allowed' : 'pointer', fontSize:10, opacity: i === rows.length - 1 ? .2 : .6 }}
+                            title="Pindahkan ke bawah"
+                          >
+                            ▼
+                          </button>
+                        </td>
                         <td style={{ padding:'8px 10px', opacity:.5 }}>{i+1}</td>
                         <td style={{ padding:'8px 10px' }}>{r.No_Surat}</td>
                         <td style={{ padding:'8px 10px', fontWeight:600 }}>{r.Nama}</td>
