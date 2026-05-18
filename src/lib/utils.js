@@ -37,6 +37,27 @@ export function formatWaktu(waktu) {
   return waktu;
 }
 
+const TERBILANG_ID = [
+  '', 'satu', 'dua', 'tiga', 'empat', 'lima',
+  'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh',
+  'sebelas', 'dua belas', 'tiga belas', 'empat belas', 'lima belas',
+  'enam belas', 'tujuh belas', 'delapan belas', 'sembilan belas', 'dua puluh'
+];
+
+function formatLampiranHTML(n) {
+  if (!n || n <= 0) return '-';
+  const kata = TERBILANG_ID[n] || String(n);
+  return `${n} (${kata}) lembar`;
+}
+
+function buildLampiranText(jenisSurat, jenisMailing, rows, barang) {
+  const isSekaligus = jenisMailing === 'Sekaligus';
+  const hasNama   = isSekaligus && (jenisSurat === 'Perizinan' || jenisSurat === 'Undangan') && rows.length > 0;
+  const hasBarang = jenisSurat === 'Peminjaman' && barang.length > 0;
+  const total = (hasNama ? 1 : 0) + (hasBarang ? 1 : 0);
+  return formatLampiranHTML(total);
+}
+
 // ── Build HTML surat (shared untuk print/PDF) ────────────────────
 // panitia = objek dari panitiaList { Nama_Panitia, Instansi, Alamat, Nama_Ketua, Jabatan, Link_TTD }
 export function buildSuratHTML(rows, jenisSurat, jenisMailing, panitia = {}, barang = []) {
@@ -98,7 +119,7 @@ export function buildSuratHTML(rows, jenisSurat, jenisMailing, panitia = {}, bar
   <div class="nomor">
     <table>
       <tr><td>Nomor</td><td>:</td><td>${s.No_Surat || ''}</td></tr>
-      <tr><td>Lampiran</td><td>:</td><td>${lampiranNama || lampiranBarang ? '1 (satu) lembar' : '-'}</td></tr>
+      <tr><td>Lamp</td><td>:</td><td>${buildLampiranText(jenisSurat, jenisMailing, rows, barang)}</td></tr>
       <tr><td>Hal</td><td>:</td><td><strong>${s.Hal || ''}</strong></td></tr>
     </table>
   </div>

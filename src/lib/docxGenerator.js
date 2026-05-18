@@ -6,6 +6,25 @@ import { api } from './api';
 
 const ROMAWI = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
+// Angka → terbilang (1–20 cukup untuk konteks lembar lampiran)
+const TERBILANG = [
+  '', 'satu', 'dua', 'tiga', 'empat', 'lima',
+  'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh',
+  'sebelas', 'dua belas', 'tiga belas', 'empat belas', 'lima belas',
+  'enam belas', 'tujuh belas', 'delapan belas', 'sembilan belas', 'dua puluh'
+];
+
+/**
+ * Hitung & format teks lampiran
+ * @param {number} n - jumlah lembar
+ * @returns {string} misal: "2 (dua) lembar" atau "-"
+ */
+function formatLampiran(n) {
+  if (!n || n <= 0) return '-';
+  const kata = TERBILANG[n] || String(n);
+  return `${n} (${kata}) lembar`;
+}
+
 function enrichData(d, panitia = {}, perizinan = {}, barang = []) {
   const t = new Date(d.Tanggal);
   const ts = new Date(d.Tanggal_Romawi);
@@ -39,6 +58,10 @@ function enrichData(d, panitia = {}, perizinan = {}, barang = []) {
   const Daftar_Barang_Text = barang.length > 0 
     ? barang.map((b, i) => `${i + 1}. ${b.Nama_Barang} (${b.Jumlah_Barang} ${b.Satuan})`).join(', ')
     : '';
+
+  // Hitung jumlah lembar lampiran untuk mode Perseorangan
+  // (Sekaligus akan di-override di groupData dengan hitungan yang lebih akurat)
+  const jumlahLampiranPerseorangan = barang.length > 0 ? 1 : 0;
 
   return {
     ...d,
@@ -77,7 +100,13 @@ function enrichData(d, panitia = {}, perizinan = {}, barang = []) {
 
     // Tag Peminjaman
     Daftar_Barang_Text,
-    items: barang
+    items: barang,
+
+    // ── Tag Lampiran ─────────────────────────────────────────────
+    // Untuk Perseorangan: hanya dihitung dari barang
+    // Untuk Sekaligus: akan di-override oleh groupData
+    Lampiran:     formatLampiran(jumlahLampiranPerseorangan),
+    Lampiran_Hal: jumlahLampiranPerseorangan > 0 ? String(jumlahLampiranPerseorangan) : '-',
   };
 }
 
@@ -96,11 +125,23 @@ function groupData(data, panitia, perizinan, barang) {
   }, {});
 
   const groups = Object.values(groupsMap);
+
+  // Hitung jumlah lembar lampiran untuk mode Sekaligus:
+  // • Daftar nama selalu ada jika orang.length > 0 → 1 lembar
+  // • Daftar barang ada jika barang.length > 0       → 1 lembar tambahan
+  const jenisSurat = mapped[0]?.Jenis_Surat || '';
+  const hasLampiranNama   = mapped.length > 0 && (jenisSurat === 'Perizinan' || jenisSurat === 'Undangan');
+  const hasLampiranBarang = barang.length > 0;
+  const jumlahLampiran    = (hasLampiranNama ? 1 : 0) + (hasLampiranBarang ? 1 : 0);
+
   return { 
     ...mapped[0], 
     orang: mapped, 
     groups, 
-    items: barang 
+    items: barang,
+    // Override Lampiran dengan hitungan Sekaligus yang akurat
+    Lampiran:     formatLampiran(jumlahLampiran),
+    Lampiran_Hal: jumlahLampiran > 0 ? String(jumlahLampiran) : '-',
   };
 }
 
