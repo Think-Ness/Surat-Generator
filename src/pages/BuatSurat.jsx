@@ -1202,8 +1202,14 @@ const TAG_CATEGORIES = [
     tags: [
       { code: '{Tanggal_Surat_Indo}', desc: 'Tgl Surat dibuat (Masehi)' },
       { code: '{Tanggal_Hijriah}', desc: 'Tgl Surat dibuat (Hijriah)' },
+      { code: '{Bln_Surat_Romawi}', desc: 'Bulan Surat (Romawi)' },
+      { code: '{Thn_Surat}', desc: 'Tahun Surat (Masehi)' },
+      { code: '{Bln_Hijriah_Romawi}', desc: 'Bulan Surat (Hijriah Romawi)' },
+      { code: '{Thn_Hijriah}', desc: 'Tahun Surat (Hijriah)' },
       { code: '{Hari}', desc: 'Hari Kegiatan' },
       { code: '{Tanggal_Indo}', desc: 'Tanggal Kegiatan (Masehi)' },
+      { code: '{Bln_Masehi_Romawi}', desc: 'Bulan Kegiatan (Romawi)' },
+      { code: '{Thn_Masehi}', desc: 'Tahun Kegiatan (Masehi)' },
       { code: '{Waktu}', desc: 'Waktu Kegiatan' }
     ]
   },
@@ -1211,6 +1217,8 @@ const TAG_CATEGORIES = [
     title: '📝 Detail Surat & Acara',
     tags: [
       { code: '{No_Surat}', desc: 'Nomor Surat' },
+      { code: '{Lampiran}', desc: 'Teks Jml Lampiran (mis: 1 (satu) lembar)' },
+      { code: '{Lampiran_Hal}', desc: 'Angka Jml Lampiran (mis: 1)' },
       { code: '{Hal}', desc: 'Perihal Surat' },
       { code: '{Ket}', desc: 'Keterangan (Kepada)' },
       { code: '{Acara}', desc: 'Nama Acara' },
@@ -1220,6 +1228,7 @@ const TAG_CATEGORIES = [
   {
     title: '🏢 Pengirim / Panitia',
     tags: [
+      { code: '{Panitia_Lengkap}', desc: 'Nama Panitia & Instansi' },
       { code: '{Panitia}', desc: 'Nama Panitia Pengirim' },
       { code: '{Instansi}', desc: 'Nama Instansi' },
       { code: '{Alamat}', desc: 'Alamat Panitia' },
